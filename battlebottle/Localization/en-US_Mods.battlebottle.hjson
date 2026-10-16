@@ -1,0 +1,6 @@
+Items: {
+	BattleBottleItem: {
+		DisplayName: Battle Bottle
+		Tooltip: ""
+	}
+}

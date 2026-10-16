@@ -1,0 +1,246 @@
+
+using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
+using Terraria;
+using Terraria.GameContent.UI.Elements;
+using Terraria.GameContent.UI;
+using Terraria.ModLoader;
+using Terraria.UI;
+using Terraria.ID;
+using ReLogic.Content;
+
+using BattleBottle.Common.Players;
+using BattleBottle.Common.Systems;
+
+namespace BattleBottle.Common.UI
+{
+    public class BattleBottleUI : UIState
+    {
+        private UIPanel panel;
+
+        // The locked-slot textures, ordered by the boss that unlocks each slot.
+        // Slot indices 3 through 7 correspond to these five textures.
+        private static readonly string[] LockedSlotPaths =
+        {
+            "BattleBottle/Assets/Textures/LockedSlot_Deerclops",
+            "BattleBottle/Assets/Textures/LockedSlot_QueenBee",
+            "BattleBottle/Assets/Textures/LockedSlot_QueenSlime",
+            "BattleBottle/Assets/Textures/LockedSlot_DukeFishron",
+            "BattleBottle/Assets/Textures/LockedSlot_EmpressOfLight"
+        };
+
+        // Cached texture assets. These are loaded when the UI is initialized.
+        private static Asset<Texture2D>[] lockedSlotTextures;
+
+        public override void OnInitialize()
+        {
+            panel = new UIPanel();
+            panel.Width.Set(360f, 0f);
+            panel.Height.Set(220f, 0f);
+            panel.Left.Set(-180f, 0.5f);
+            panel.Top.Set(-110f, 0.5f);
+            panel.PaddingTop = 12f;
+            panel.PaddingBottom = 12f;
+            Append(panel);
+
+            UIText title = new UIText("Battle Bottle", 1f);
+            title.Left.Set(12f, 0f);
+            title.Top.Set(8f, 0f);
+            panel.Append(title);
+
+            // Close button.
+            UITextPanel<string> closeButton =
+                new UITextPanel<string>("Close", 0.8f);
+
+            closeButton.Width.Set(64f, 0f);
+            closeButton.Height.Set(30f, 0f);
+            closeButton.Left.Set(-76f, 1f);
+            closeButton.Top.Set(4f, 0f);
+
+            closeButton.OnLeftClick += (evt, element) =>
+            {
+                BattleBottleUISystem.CloseBottle();
+            };
+
+            panel.Append(closeButton);
+
+            // Create all eight slots. Each slot decides whether to draw
+            // a normal inventory slot or its own locked-slot sprite.
+            for (int i = 0; i < BattleBottlePlayer.SlotCount; i++)
+            {
+                BottleItemSlot slot = new BottleItemSlot(i);
+
+                slot.Left.Set(26f + (i % 4) * 76f, 0f);
+                slot.Top.Set(62f + (i / 4) * 64f, 0f);
+
+                panel.Append(slot);
+            }
+        }
+
+        // Load our custom sprites when the UI system loads.
+        // Missing placeholder files are skipped so development can continue.
+        public static void LoadLockedSlotTextures()
+        {
+            lockedSlotTextures =
+                new Asset<Texture2D>[LockedSlotPaths.Length];
+
+            for (int i = 0; i < LockedSlotPaths.Length; i++)
+            {
+                string path = LockedSlotPaths[i];
+
+                if (ModContent.RequestIfExists<Texture2D>(
+                    path,
+                    out Asset<Texture2D> texture,
+                    AssetRequestMode.ImmediateLoad))
+                {
+                    lockedSlotTextures[i] = texture;
+                }
+            }
+        }
+
+        // Release cached references when the mod unloads.
+        public static void UnloadLockedSlotTextures()
+        {
+            lockedSlotTextures = null;
+        }
+
+        
+        private class BottleItemSlot : UIElement
+        {
+            private readonly int slotIndex;
+
+            public BottleItemSlot(int index)
+            {
+                slotIndex = index;
+
+                Width.Set(52f, 0f);
+                Height.Set(52f, 0f);
+            }
+
+            private bool IsSlotUnlocked()
+            {
+                //return slotIndex < BattleBottleWorld.UnlockedSlots;
+                return BattleBottleWorld.IsSlotUnlocked(slotIndex);
+            }
+
+            public override void Update(GameTime gameTime)
+            {
+                base.Update(gameTime);
+
+                if (Main.dedServ)
+                    return;
+
+                // Tell Terraria that the mouse is interacting with our UI.
+                // This prevents clicks over a slot from also interacting with
+                // the world behind the Battle Bottle window.
+                if (ContainsPoint(Main.MouseScreen))
+                {
+                    Main.LocalPlayer.mouseInterface = true;
+                }
+
+                // IMPORTANT:
+                // ItemSlot.Handle is no longer called here.
+                // We'll handle item movement while drawing the slot instead.
+            }
+
+            protected override void DrawSelf(SpriteBatch spriteBatch)
+            {
+                
+
+                if (Main.dedServ)
+                    return;
+
+                bool mouseOverSlot = ContainsPoint(Main.MouseScreen);
+
+                // Claim the mouse whenever it is over a slot, including locked slots.
+                // This prevents clicks from passing through to the game world.
+                if (mouseOverSlot)
+                {
+                    Main.LocalPlayer.mouseInterface = true;
+                }
+
+                // Locked slots only display their unique sprite.
+                // They never allow items to be placed into or taken out of them.
+                if (!IsSlotUnlocked())
+                {
+                    DrawLockedSlot(spriteBatch);
+                    return;
+                }
+
+                BattleBottlePlayer bottlePlayer =
+                    Main.LocalPlayer.GetModPlayer<BattleBottlePlayer>();
+
+                // Process clicks and item movement only while hovering over
+                // this unlocked slot.
+                if (mouseOverSlot)
+                {
+                    ItemSlot.Handle(
+                        ref bottlePlayer.StoredPotions[slotIndex],
+                        ItemSlot.Context.InventoryItem);
+                }
+
+                // Draw the inventory slot and its stored item.
+                // Empty slots should not display an item stack count.
+                Item storedItem = bottlePlayer.StoredPotions[slotIndex];
+
+                if (storedItem == null || storedItem.IsAir)
+                {
+                    // Draw an empty slot without rendering an item or stack count.
+                    ItemSlot.Draw(
+                        spriteBatch,
+                        ref bottlePlayer.StoredPotions[slotIndex],
+                        ItemSlot.Context.InventoryItem,
+                        GetDimensions().Position());
+                }
+                else
+                {
+                    // Draw the stored potion normally, including its stack count if needed.
+                    ItemSlot.Draw(
+                        spriteBatch,
+                        ref bottlePlayer.StoredPotions[slotIndex],
+                        ItemSlot.Context.InventoryItem,
+                        GetDimensions().Position());
+                }
+
+                //temp test
+                //Main.NewText($"Inventory scale: {Main.inventoryScale}");
+            }
+
+            private void DrawLockedSlot(SpriteBatch spriteBatch)
+            {
+                // Slots 0-2 are never locked. The first locked slot has
+                // index 3, which maps to the first entry in LockedSlotPaths.
+                int textureIndex = slotIndex - 3;
+
+                if (lockedSlotTextures != null &&
+                    textureIndex >= 0 &&
+                    textureIndex < lockedSlotTextures.Length &&
+                    lockedSlotTextures[textureIndex] != null)
+                {
+                    Texture2D texture =
+                        lockedSlotTextures[textureIndex].Value;
+
+                    Rectangle bounds = GetDimensions().ToRectangle();
+
+                    // Draw the custom sprite scaled to the slot dimensions.
+                    spriteBatch.Draw(
+                        texture,
+                        bounds,
+                        Color.White);
+                }
+                else
+                {
+                    // Temporary fallback while the custom sprite is missing.
+                    // This is deliberately subtle and can be removed once
+                    // all five sprites have been added.
+                    Rectangle bounds = GetDimensions().ToRectangle();
+
+                    spriteBatch.Draw(
+                        Terraria.GameContent.TextureAssets.MagicPixel.Value,
+                        bounds,
+                        new Color(35, 35, 35, 220));
+                }
+            }
+        }
+    }
+}

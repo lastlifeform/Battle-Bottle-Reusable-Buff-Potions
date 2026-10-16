@@ -1,0 +1,3 @@
+displayName = Battle Bottle: Reusable Buff Potions
+author = Bleachwing
+version = 1.0.0

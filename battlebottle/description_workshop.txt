@@ -1,0 +1,28 @@
+[h1]Battle Bottle[h1]
+[h2]Reusable Buff Potions[h2]
+
+This mod adds the Battle Bottle, an item that adds a small additional inventory for buff potions. When one is in your inventory and there is a boss fight or select event going on, you will have those buffs applied to you constantly without consuming the potions. 
+
+
+You can unlock more slots for your Battle Bottle by defeating vanilla optional bosses, going from 3 to a maximum of 8. 
+
+
+The Battle Bottle can be obtained pre-boss, with the following recipe: 
+1 Bottle + 1 Obsidian Skull + 3 Fallen Stars + 1 Demonite/Crimtane Bar @ a demon alter / crimson alter. 
+
+
+This should be compatible with all modded boss fights and buff potions, but only modded events that are considered invasions as there is no universal event flag.  
+
+
+
+[h3]My Links[h3]
+
+
+Instagram: https://www.instagram.com/bleachwing_
+Xwitter: https://x.com/bleachwing_
+Patreon: https://www.patreon.com/cw/bleachwing
+
+
+
+[h3]Future Updates[h3]
+Once I am more familiar with modded UIs, I will remove/replace the 1s in the Battle Bottle’s item slots. 
